@@ -1,0 +1,358 @@
+##server:
+##  port: 8080
+##
+##spring:
+##  main:
+##    web-application-type: reactive
+##  application:
+##    name: api-gateway
+##  cloud:
+##    gateway:
+##      discovery:
+##        locator:
+##          enabled: false
+##          lower-case-service-id: true
+##      globalcors:
+##        cors-configurations:
+##          '[/**]':
+##            allowedOrigins:
+##              - "http://localhost:3000"
+##              - "http://localhost:5173"
+##              - "http://127.0.0.1:3000"
+##              - "http://127.0.0.1:5173"
+##            allowedMethods:
+##              - GET
+##              - POST
+##              - PUT
+##              - DELETE
+##              - OPTIONS
+##            allowedHeaders:
+##              - "Content-Type"
+##              - "Authorization"
+##              - "X-Requested-With"
+##              - "X-Correlation-Id"
+##              - "Idempotency-Key"
+##              - "traceparent"
+##            exposedHeaders:
+##              - "Authorization"
+##              - "X-Trace-Id"
+##              - "Idempotency-Key"
+##            allowCredentials: true
+##            maxAge: 3600
+##      routes:
+##        # Auth Service Route (Public)
+##        - id: auth-service
+##          uri: lb://AUTH-SERVICE
+##          predicates:
+##            - Path=/api/auth/**
+##
+##        # Product Service Route (Public Read / Admin Write)
+##        - id: product-service
+##          uri: lb://PRODUCT-SERVICE
+##          predicates:
+##            - Path=/api/products/**
+##
+##        # Inventory Service Route
+##        - id: inventory-service
+##          uri: lb://INVENTORY-SERVICE
+##          predicates:
+##            - Path=/api/inventory/**
+##
+##        # Order Service Route
+##        - id: order-service
+##          uri: lb://ORDER-SERVICE
+##          predicates:
+##            - Path=/api/orders/**
+##
+##        # Payment Service Route
+##        - id: payment-service
+##          uri: lb://PAYMENT-SERVICE
+##          predicates:
+##            - Path=/api/payments/**
+##
+##        # Analytics Service Route (Admin)
+##        - id: analytics-service
+##          uri: lb://ANALYTICS-SERVICE
+##          predicates:
+##            - Path=/api/analytics/**
+##
+##eureka:
+##  instance:
+##    prefer-ip-address: true
+##  client:
+##    service-url:
+##      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+##    register-with-eureka: true
+##    fetch-registry: true
+##
+### Shared JWT configuration for edge validation filter
+##jwt:
+##  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+##
+##management:
+##  otlp:
+##    tracing:
+##      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+##  tracing:
+##    sampling:
+##      probability: 1.0
+##    propagation:
+##      type: W3C
+##  endpoints:
+##    web:
+##      exposure:
+##        include: health,info,metrics,prometheus,gateway
+##  endpoint:
+##    health:
+##      show-details: always
+##
+##logging:
+##  pattern:
+##    level: "%5p"
+##    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-},%X{spanId:-}] [%15.15t] %-40.40logger{39} : %m%n"
+#
+#
+#
+#
+#
+#server:
+#  port: 8080
+#
+#spring:
+#  main:
+#    web-application-type: reactive
+#  application:
+#    name: api-gateway
+#  cloud:
+#    gateway:
+#      discovery:
+#        locator:
+#          enabled: false
+#          lower-case-service-id: true
+#      globalcors:
+#        cors-configurations:
+#          '[/**]':
+#            allowedOrigins:
+#              - "http://localhost:3000"
+#              - "http://localhost:5173"
+#              - "http://localhost:5174"
+#              - "http://127.0.0.1:3000"
+#              - "http://127.0.0.1:5173"
+#              - "http://127.0.0.1:5174"
+#            allowedMethods:
+#              - GET
+#              - POST
+#              - PUT
+#              - DELETE
+#              - OPTIONS
+#            allowedHeaders:
+#              - "Content-Type"
+#              - "Authorization"
+#              - "X-Requested-With"
+#              - "X-Correlation-Id"
+#              - "Idempotency-Key"
+#              - "traceparent"
+#            exposedHeaders:
+#              - "Authorization"
+#              - "X-Trace-Id"
+#              - "Idempotency-Key"
+#            allowCredentials: true
+#            maxAge: 3600
+#      routes:
+#        # Auth Service Route (Public)
+#        - id: auth-service
+#          uri: lb://AUTH-SERVICE
+#          predicates:
+#            - Path=/api/auth/**
+#
+#        # Product Service Route (Public Read / Admin Write)
+#        - id: product-service
+#          uri: lb://PRODUCT-SERVICE
+#          predicates:
+#            - Path=/api/products/**
+#
+#        # Inventory Service Route
+#        - id: inventory-service
+#          uri: lb://INVENTORY-SERVICE
+#          predicates:
+#            - Path=/api/inventory/**
+#
+#        # Order Service Route
+#        - id: order-service
+#          uri: lb://ORDER-SERVICE
+#          predicates:
+#            - Path=/api/orders/**
+#
+#        # Payment Service Route
+#        - id: payment-service
+#          uri: lb://PAYMENT-SERVICE
+#          predicates:
+#            - Path=/api/payments/**
+#
+#        # Analytics Service Route (Admin)
+#        - id: analytics-service
+#          uri: lb://ANALYTICS-SERVICE
+#          predicates:
+#            - Path=/api/analytics/**
+#
+#eureka:
+#  instance:
+#    prefer-ip-address: true
+#  client:
+#    service-url:
+#      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+#    register-with-eureka: true
+#    fetch-registry: true
+#
+## Shared JWT configuration for edge validation filter
+#jwt:
+#  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+#
+#management:
+#  otlp:
+#    tracing:
+#      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+#  tracing:
+#    sampling:
+#      probability: 1.0
+#    propagation:
+#      type: W3C
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics,prometheus,gateway
+#  endpoint:
+#    health:
+#      show-details: always
+#
+#logging:
+#  pattern:
+#    level: "%5p"
+#    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-},%X{spanId:-}] [%15.15t] %-40.40logger{39} : %m%n"
+
+
+server:
+  port: 8080
+
+spring:
+  main:
+    web-application-type: reactive
+
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+          lower-case-service-id: true
+
+      # CORS configuration
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:3001"
+              - "http://localhost:5173"
+              - "http://localhost:5174"
+              - "http://127.0.0.1:3000"
+              - "http://127.0.0.1:3001"
+              - "http://127.0.0.1:5173"
+              - "http://127.0.0.1:5174"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - "Authorization"
+              - "X-Trace-Id"
+              - "Idempotency-Key"
+            allowCredentials: true
+            maxAge: 3600
+
+      routes:
+
+        # Auth Service Route
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/auth/**
+
+        # Product Service Route
+        - id: product-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/**
+
+        # Inventory Service Route
+        - id: inventory-service
+          uri: lb://INVENTORY-SERVICE
+          predicates:
+            - Path=/api/inventory/**
+
+        # Order Service Route
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/**
+
+        # Payment Service Route
+        - id: payment-service
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/**
+
+        # Analytics Service Route
+        - id: analytics-service
+          uri: lb://ANALYTICS-SERVICE
+          predicates:
+            - Path=/api/analytics/**
+
+eureka:
+  instance:
+    prefer-ip-address: true
+
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+    register-with-eureka: true
+    fetch-registry: true
+
+# JWT configuration
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+
+management:
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+
+  tracing:
+    sampling:
+      probability: 1.0
+
+    propagation:
+      type: W3C
+
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,gateway
+
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  pattern:
+    level: "%5p"
+
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-},%X{spanId:-}] [%15.15t] %-40.40logger{39} : %m%n"
