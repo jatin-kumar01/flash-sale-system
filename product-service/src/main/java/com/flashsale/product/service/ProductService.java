@@ -86,41 +86,98 @@ public class ProductService {
 
     @Transactional
     public ProductResponse updateProduct(Long productId, UpdateProductRequest request) {
+
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product", "id", productId));
 
-        if (request.getStartTime() != null && request.getEndTime() != null) {
-            validateProductWindow(request.getStartTime(), request.getEndTime());
-            product.setStartTime(request.getStartTime());
-            product.setEndTime(request.getEndTime());
+        // -----------------------------
+        // Validate sale time
+        // -----------------------------
+        Instant newStartTime =
+                request.getStartTime() != null
+                        ? request.getStartTime()
+                        : product.getStartTime();
+
+        Instant newEndTime =
+                request.getEndTime() != null
+                        ? request.getEndTime()
+                        : product.getEndTime();
+
+        if (request.getStartTime() != null || request.getEndTime() != null) {
+            validateProductWindow(newStartTime, newEndTime);
+
+            product.setStartTime(newStartTime);
+            product.setEndTime(newEndTime);
         }
 
-        if (request.getOriginalPrice() != null && request.getFlashSalePrice() != null) {
-            validatePricing(request.getOriginalPrice(), request.getFlashSalePrice());
-            product.setOriginalPrice(request.getOriginalPrice());
-            product.setFlashSalePrice(request.getFlashSalePrice());
+        // -----------------------------
+        // Validate pricing
+        // -----------------------------
+        java.math.BigDecimal newOriginalPrice =
+                request.getOriginalPrice() != null
+                        ? request.getOriginalPrice()
+                        : product.getOriginalPrice();
+
+        java.math.BigDecimal newFlashSalePrice =
+                request.getFlashSalePrice() != null
+                        ? request.getFlashSalePrice()
+                        : product.getFlashSalePrice();
+
+        if (request.getOriginalPrice() != null
+                || request.getFlashSalePrice() != null) {
+
+            validatePricing(newOriginalPrice, newFlashSalePrice);
+
+            product.setOriginalPrice(newOriginalPrice);
+            product.setFlashSalePrice(newFlashSalePrice);
         }
 
-        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+        // -----------------------------
+        // Update basic details
+        // -----------------------------
+        if (request.getTitle() != null) {
+            if (request.getTitle().isBlank()) {
+                throw new InvalidRequestException(
+                        "Product title cannot be blank"
+                );
+            }
+
             product.setTitle(request.getTitle().trim());
         }
+
         if (request.getDescription() != null) {
             product.setDescription(request.getDescription());
         }
-        if (request.getInitialStock() != null && request.getInitialStock() >= 0) {
-            product.setInitialStock(request.getInitialStock());
-        }
+
         if (request.getImageUrl() != null) {
             product.setImageUrl(request.getImageUrl());
         }
+
+        // -----------------------------
+        // Update status
+        // -----------------------------
         if (request.getStatus() != null) {
             product.setStatus(request.getStatus());
         }
 
-        Product updatedProduct = productRepository.save(product);
-        log.info("Updated product ID: {}", updatedProduct.getId());
+        // -----------------------------
+        // Save product
+        // -----------------------------
+        Product updatedProduct =
+                productRepository.save(product);
 
-        ProductResponse response = ProductResponse.fromEntity(updatedProduct);
+        log.info(
+                "Updated product ID: {}",
+                updatedProduct.getId()
+        );
+
+        // -----------------------------
+        // Update cache
+        // -----------------------------
+        ProductResponse response =
+                ProductResponse.fromEntity(updatedProduct);
+
         productCacheService.putProduct(response);
         productCacheService.evictActiveFlashSales();
 

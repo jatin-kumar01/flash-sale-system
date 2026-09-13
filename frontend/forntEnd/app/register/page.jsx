@@ -4,60 +4,52 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 
-export default function LoginPage() {
+export default function RegisterPage() {
     const router = useRouter();
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [form, setForm] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+    });
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const handleLogin = async (e) => {
+    const handleChange = (e) => {
+        setForm({
+            ...form,
+            [e.target.name]: e.target.value,
+        });
+    };
+
+    const handleRegister = async (e) => {
         e.preventDefault();
 
         setError("");
         setLoading(true);
 
         try {
-            const response = await api.post("/auth/login", {
-                email,
-                password,
-            });
+            const response = await api.post("/auth/register", form);
 
-            console.log("Login response:", response.data);
+            console.log("Register response:", response.data);
 
-            // Get authentication data from the server response
-            const authData = response.data?.data;
-
-            const accessToken = authData?.accessToken;
+            const accessToken = response.data?.data?.accessToken;
 
             if (!accessToken) {
                 throw new Error("Access token was not returned by the server.");
             }
 
-            // Store access token
             localStorage.setItem("accessToken", accessToken);
 
-            // Store logged-in user information
-            localStorage.setItem(
-                "user",
-                JSON.stringify({
-                    userId: authData.userId,
-                    email: authData.email,
-                    firstName: authData.firstName,
-                    lastName: authData.lastName,
-                    roles: authData.roles,
-                })
-            );
-
-            // Go to dashboard
             router.push("/");
         } catch (error) {
-            console.error("Login error:", error);
+            console.error("Registration error:", error);
 
             const message =
                 error.response?.data?.message ||
-                "Invalid email or password.";
+                "Registration failed. Please try again.";
 
             setError(message);
         } finally {
@@ -78,22 +70,55 @@ export default function LoginPage() {
                     </div>
 
                     <h1 className="text-3xl font-bold">
-                        Flash
-                        <span className="text-[#fbbf24]">Sale</span> Engine
+                        Flash<span className="text-[#fbbf24]">Sale</span> Engine
                     </h1>
 
                     <p className="text-slate-400 mt-2">
-                        Sign in to continue
+                        Create your account
                     </p>
                 </div>
 
-                {/* Login Card */}
+                {/* Register Card */}
                 <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-7 shadow-2xl">
                     <h2 className="text-2xl font-semibold mb-6">
-                        Welcome back
+                        Create Account
                     </h2>
 
-                    <form onSubmit={handleLogin} className="space-y-5">
+                    <form onSubmit={handleRegister} className="space-y-5">
+
+                        {/* First Name */}
+                        <div>
+                            <label className="block text-sm text-slate-300 mb-2">
+                                First Name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="firstName"
+                                value={form.firstName}
+                                onChange={handleChange}
+                                placeholder="Jatin"
+                                required
+                                className="w-full rounded-lg border border-slate-700 bg-[#020617] px-4 py-3 text-white outline-none focus:border-[#fbbf24]"
+                            />
+                        </div>
+
+                        {/* Last Name */}
+                        <div>
+                            <label className="block text-sm text-slate-300 mb-2">
+                                Last Name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="lastName"
+                                value={form.lastName}
+                                onChange={handleChange}
+                                placeholder="Kumar"
+                                required
+                                className="w-full rounded-lg border border-slate-700 bg-[#020617] px-4 py-3 text-white outline-none focus:border-[#fbbf24]"
+                            />
+                        </div>
 
                         {/* Email */}
                         <div>
@@ -103,8 +128,9 @@ export default function LoginPage() {
 
                             <input
                                 type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                name="email"
+                                value={form.email}
+                                onChange={handleChange}
                                 placeholder="you@example.com"
                                 required
                                 className="w-full rounded-lg border border-slate-700 bg-[#020617] px-4 py-3 text-white outline-none focus:border-[#fbbf24]"
@@ -119,12 +145,18 @@ export default function LoginPage() {
 
                             <input
                                 type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                name="password"
+                                value={form.password}
+                                onChange={handleChange}
                                 placeholder="••••••••"
+                                minLength={8}
                                 required
                                 className="w-full rounded-lg border border-slate-700 bg-[#020617] px-4 py-3 text-white outline-none focus:border-[#fbbf24]"
                             />
+
+                            <p className="text-xs text-slate-500 mt-2">
+                                Password must be at least 8 characters.
+                            </p>
                         </div>
 
                         {/* Error */}
@@ -140,18 +172,18 @@ export default function LoginPage() {
                             disabled={loading}
                             className="w-full rounded-lg bg-[#fbbf24] px-4 py-3 font-semibold text-black transition hover:bg-[#f59e0b] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {loading ? "Signing in..." : "Sign In"}
+                            {loading ? "Creating account..." : "Create Account"}
                         </button>
                     </form>
 
-                    {/* Register */}
+                    {/* Login */}
                     <div className="mt-6 text-center text-sm text-slate-400">
-                        Don't have an account?{" "}
+                        Already have an account?{" "}
                         <a
-                            href="/register"
+                            href="/login"
                             className="font-semibold text-[#fbbf24] hover:underline"
                         >
-                            Create account
+                            Sign in
                         </a>
                     </div>
                 </div>

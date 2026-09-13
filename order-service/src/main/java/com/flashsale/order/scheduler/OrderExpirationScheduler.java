@@ -1,12 +1,85 @@
+//package com.flashsale.order.scheduler;
+//
+//import com.flashsale.common.event.OrderEvent;
+//import com.flashsale.order.entity.Order;
+//import com.flashsale.order.entity.Order.OrderStatus;
+//import com.flashsale.order.kafka.OrderProducer;
+//import com.flashsale.order.repository.OrderRepository;
+//import lombok.RequiredArgsConstructor;
+//import lombok.extern.slf4j.Slf4j;
+//import org.springframework.data.domain.PageRequest;
+//import org.springframework.scheduling.annotation.Scheduled;
+//import org.springframework.stereotype.Component;
+//import org.springframework.transaction.annotation.Transactional;
+//
+//import java.time.Instant;
+//import java.util.List;
+//
+//@Slf4j
+//@Component
+//@RequiredArgsConstructor
+//public class OrderExpirationScheduler {
+//
+//    private final OrderRepository orderRepository;
+//    private final OrderProducer orderProducer;
+//
+//    private static final int BATCH_SIZE = 100;
+//
+//    @Scheduled(fixedDelayString = "${app.order.expiration-check-interval-ms:30000}")
+//    @Transactional
+//    public void sweepExpiredOrders() {
+//        Instant now = Instant.now();
+//        List<Order> expiredOrders = orderRepository.findExpiredOrders(
+//                OrderStatus.PENDING_PAYMENT,
+//                now,
+//                PageRequest.of(0, BATCH_SIZE)
+//        );
+//
+//        if (expiredOrders.isEmpty()) {
+//            return;
+//        }
+//
+//        log.info("Found {} expired pending orders to sweep at timestamp: {}", expiredOrders.size(), now);
+//
+//        for (Order order : expiredOrders) {
+//            try {
+//                order.expire();
+//                orderRepository.save(order);
+//
+//                OrderEvent event = OrderEvent.builder()
+//                        .orderReference(order.getOrderReference())
+//                        .userId(order.getUserId())
+//                        .productId(order.getProductId())
+//                        .quantity(order.getQuantity())
+//                        .totalAmount(order.getTotalAmount())
+//                        .eventType("ORDER_EXPIRED")
+//                        .occurredAt(Instant.now())
+//                        .build();
+//
+//                orderProducer.sendOrderExpiredEvent(event);
+//                log.info("Expired order: {} and dispatched OrderExpired event", order.getOrderReference());
+//            } catch (Exception ex) {
+//                log.error("Failed to expire order: {}", order.getOrderReference(), ex);
+//            }
+//        }
+//    }
+//}
+
+
 package com.flashsale.order.scheduler;
 
 import com.flashsale.common.event.OrderEvent;
 import com.flashsale.order.entity.Order;
 import com.flashsale.order.entity.Order.OrderStatus;
-import com.flashsale.order.kafka.OrderProducer;
+import com.flashsale.order.entity.OrderOutbox;
+import com.flashsale.common.outbox.OutboxStatus;
+import com.flashsale.order.repository.OrderOutboxRepository;
 import com.flashsale.order.repository.OrderRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,14 +94,20 @@ import java.util.List;
 public class OrderExpirationScheduler {
 
     private final OrderRepository orderRepository;
-    private final OrderProducer orderProducer;
+    private final OrderOutboxRepository orderOutboxRepository;
+    private final ObjectMapper objectMapper;
+
+    @Value("${app.kafka.topics.order-expired:order.expired}")
+    private String orderExpiredTopic;
 
     private static final int BATCH_SIZE = 100;
 
     @Scheduled(fixedDelayString = "${app.order.expiration-check-interval-ms:30000}")
     @Transactional
     public void sweepExpiredOrders() {
+
         Instant now = Instant.now();
+
         List<Order> expiredOrders = orderRepository.findExpiredOrders(
                 OrderStatus.PENDING_PAYMENT,
                 now,
@@ -39,27 +118,62 @@ public class OrderExpirationScheduler {
             return;
         }
 
-        log.info("Found {} expired pending orders to sweep at timestamp: {}", expiredOrders.size(), now);
+        log.info(
+                "Found {} expired pending orders to sweep at timestamp: {}",
+                expiredOrders.size(),
+                now
+        );
 
         for (Order order : expiredOrders) {
             try {
                 order.expire();
-                orderRepository.save(order);
+                Order savedOrder = orderRepository.save(order);
 
                 OrderEvent event = OrderEvent.builder()
-                        .orderReference(order.getOrderReference())
-                        .userId(order.getUserId())
-                        .productId(order.getProductId())
-                        .quantity(order.getQuantity())
-                        .totalAmount(order.getTotalAmount())
+                        .orderReference(savedOrder.getOrderReference())
+                        .userId(savedOrder.getUserId())
+                        .productId(savedOrder.getProductId())
+                        .quantity(savedOrder.getQuantity())
+                        .totalAmount(savedOrder.getTotalAmount())
                         .eventType("ORDER_EXPIRED")
                         .occurredAt(Instant.now())
                         .build();
 
-                orderProducer.sendOrderExpiredEvent(event);
-                log.info("Expired order: {} and dispatched OrderExpired event", order.getOrderReference());
+                String payload = objectMapper.writeValueAsString(event);
+
+                OrderOutbox outbox = OrderOutbox.builder()
+                        .aggregateType("ORDER")
+                        .aggregateId(savedOrder.getOrderReference())
+                        .eventType("ORDER_EXPIRED")
+                        .destinationTopic(orderExpiredTopic)
+                        .partitionKey(savedOrder.getOrderReference())
+                        .payload(payload)
+                        .status(OutboxStatus.PENDING)
+                        .build();
+
+                orderOutboxRepository.save(outbox);
+
+                log.info(
+                        "Expired order: {} and staged ORDER_EXPIRED outbox event",
+                        savedOrder.getOrderReference()
+                );
+
+            } catch (JsonProcessingException ex) {
+                log.error(
+                        "Failed to serialize ORDER_EXPIRED event for order: {}",
+                        order.getOrderReference(),
+                        ex
+                );
+                throw new IllegalStateException(
+                        "Failed to serialize ORDER_EXPIRED event",
+                        ex
+                );
             } catch (Exception ex) {
-                log.error("Failed to expire order: {}", order.getOrderReference(), ex);
+                log.error(
+                        "Failed to expire order: {}",
+                        order.getOrderReference(),
+                        ex
+                );
             }
         }
     }

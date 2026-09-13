@@ -108,18 +108,34 @@ public class InventoryClient {
         }
     }
 
+    @CircuitBreaker(name = "inventoryService", fallbackMethod = "settleStockFallback")
+    @Retry(name = "inventoryService")
     public void settleStock(InventoryReservationRequest request) {
-        log.info("Calling inventory-service to settle stock: orderRef={}", request.getOrderReference());
-        try {
-            restClient.post()
-                    .uri("/api/inventory/settle")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(request)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (Exception ex) {
-            log.error("Failed to settle stock for orderRef={}: {}", request.getOrderReference(), ex.getMessage());
-            throw new InventoryUnavailableException("Failed to settle stock: " + ex.getMessage(), ex);
-        }
+
+        log.info("Calling inventory-service to settle stock: orderRef={}",
+                request.getOrderReference());
+
+        restClient.post()
+                .uri("/api/inventory/settle")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public void settleStockFallback(
+            InventoryReservationRequest request,
+            Throwable ex) {
+
+        log.error(
+                "Failed to settle stock for orderRef={}: {}",
+                request.getOrderReference(),
+                ex.getMessage()
+        );
+
+        throw new InventoryUnavailableException(
+                "Failed to settle stock: " + ex.getMessage(),
+                ex
+        );
     }
 }

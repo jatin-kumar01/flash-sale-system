@@ -108,3 +108,10 @@ management:
   endpoint:
     health:
       show-details: always
+app:
+  admin:
+    enabled: true
+    email: admin@flashsale.com
+    password: Admin@123
+    first-name: Admin
+    last-name: Kumar

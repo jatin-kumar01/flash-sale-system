@@ -182,26 +182,32 @@ public class OrderService {
 
     @Transactional
     public void markOrderAsPaid(String orderReference) {
-        Order order = orderRepository.findByOrderReference(orderReference)
-                .orElseThrow(() -> new ResourceNotFoundException("Order", "orderReference", orderReference));
 
+        Order order = orderRepository.findByOrderReference(orderReference)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order",
+                                "orderReference",
+                                orderReference
+                        )
+                );
+
+        InventoryReservationRequest settleRequest =
+                InventoryReservationRequest.builder()
+                        .productId(order.getProductId())
+                        .quantity(order.getQuantity())
+                        .orderReference(order.getOrderReference())
+                        .build();
+
+        // First settle inventory
+        inventoryClient.settleStock(settleRequest);
+
+        // Only mark order as PAID after inventory settlement succeeds
         order.markAsPaid();
         orderRepository.save(order);
 
-        // Settle inventory deduction directly
-        InventoryReservationRequest settleRequest = InventoryReservationRequest.builder()
-                .productId(order.getProductId())
-                .quantity(order.getQuantity())
-                .orderReference(order.getOrderReference())
-                .build();
-
-        try {
-            inventoryClient.settleStock(settleRequest);
-        } catch (Exception ex) {
-            log.error("Failed to settle stock directly with inventory-service for paid order: {}", orderReference, ex);
-        }
-
-        log.info("Order {} marked as PAID and stock settled.", orderReference);
+        log.info("Order {} marked as PAID and inventory settled successfully.",
+                orderReference);
     }
 
     @Transactional(readOnly = true)
