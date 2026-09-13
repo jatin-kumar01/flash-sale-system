@@ -22,7 +22,12 @@ const products = [
         stock: 18,
         sold: 82,
         color: 'from-amber-400 to-orange-600',
-        specs: ['Adaptive noise cancellation', '40-hour battery', 'Spatial audio'],
+        imageUrl: '/images/aeropods.jpg',
+        specs: [
+            'Adaptive noise cancellation',
+            '40-hour battery',
+            'Spatial audio'
+        ],
         variants: {
             Color: ['Midnight', 'Silver', 'Citrus'],
             Size: ['Standard']
@@ -37,7 +42,12 @@ const products = [
         stock: 31,
         sold: 69,
         color: 'from-cyan-400 to-blue-600',
-        specs: ['Carbon foam sole', 'Breathable knit upper', 'Reflective heel'],
+        imageUrl: '/images/velocity-runner.jpg',
+        specs: [
+            'Carbon foam sole',
+            'Breathable knit upper',
+            'Reflective heel'
+        ],
         variants: {
             Color: ['Ocean', 'Volt', 'Black'],
             Size: ['8', '9', '10', '11', '12']
@@ -52,7 +62,12 @@ const products = [
         stock: 12,
         sold: 88,
         color: 'from-fuchsia-400 to-violet-600',
-        specs: ['Hot-swappable switches', 'RGB backlight', 'Aluminum frame'],
+        imageUrl: '/images/orbit-mechanical.jpg',
+        specs: [
+            'Hot-swappable switches',
+            'RGB backlight',
+            'Aluminum frame'
+        ],
         variants: {
             Color: ['Violet', 'Graphite'],
             Size: ['75%', 'TKL']
@@ -67,7 +82,12 @@ const products = [
         stock: 7,
         sold: 93,
         color: 'from-emerald-400 to-teal-600',
-        specs: ['4K 120fps video', '24MP sensor', 'Magnetic lens mount'],
+        imageUrl: '/images/nova-camera.jpg',
+        specs: [
+            '4K 120fps video',
+            '24MP sensor',
+            'Magnetic lens mount'
+        ],
         variants: {
             Color: ['Forest', 'Black'],
             Size: ['Body only', 'Creator kit']
@@ -82,7 +102,12 @@ const products = [
         stock: 24,
         sold: 76,
         color: 'from-rose-400 to-red-600',
-        specs: ['7-day battery', 'Sleep tracking', 'Water resistant 50m'],
+        imageUrl: '/images/pulse-smartwatch.jpg',
+        specs: [
+            '7-day battery',
+            'Sleep tracking',
+            'Water resistant 50m'
+        ],
         variants: {
             Color: ['Coral', 'Slate'],
             Size: ['40mm', '44mm']
@@ -97,15 +122,18 @@ const products = [
         stock: 42,
         sold: 58,
         color: 'from-yellow-300 to-amber-600',
-        specs: ['Adaptive brightness', 'USB-C charging', 'Touch controls'],
+        imageUrl: '/images/lumen-lamp.jpg',
+        specs: [
+            'Adaptive brightness',
+            'USB-C charging',
+            'Touch controls'
+        ],
         variants: {
             Color: ['Sunrise', 'Charcoal'],
             Size: ['One size']
         }
     },
 ]
-
-
 function Metric({ icon: Icon, label, value, detail, tone = 'amber' }) {
     return (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-2xl shadow-black/10">
@@ -145,13 +173,11 @@ function ProductCard({ product, onAdd, onOpen }) {
                     : 'cursor-pointer hover:-translate-y-1 hover:border-amber-400/50'
             }`}
         >
-            <div
-                className={`relative flex h-40 items-center justify-center bg-gradient-to-br ${product.color}`}
-            >
-                <Box
-                    size={60}
-                    className="text-white/85 transition group-hover:scale-110"
-                    strokeWidth={1.2}
+            <div className="relative h-40 overflow-hidden">
+                <img
+                    src={product.imageUrl || "/images/iphone.jpg"}
+                    alt={product.name}
+                    className="h-full w-full object-cover transition group-hover:scale-105"
                 />
 
                 <span className="absolute right-3 top-3 rounded-full bg-slate-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
@@ -917,13 +943,11 @@ function ProductDetail({ product, onBack, onAdd, notify }) {
 
                 <div>
 
-                    <div
-                        className={`flex h-96 items-center justify-center rounded-3xl bg-gradient-to-br ${product.color}`}
-                    >
-                        <Box
-                            size={150}
-                            className="text-white/80"
-                            strokeWidth={1}
+                    <div className="relative h-96 overflow-hidden rounded-3xl bg-slate-900">
+                        <img
+                            src={product.imageUrl || "/images/iphone.jpg"}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
                         />
                     </div>
 
@@ -932,17 +956,16 @@ function ProductDetail({ product, onBack, onAdd, notify }) {
                             <button
                                 key={i}
                                 onClick={() => setImage(i)}
-                                className={`h-20 rounded-xl bg-gradient-to-br ${
-                                    product.color
-                                } ${
+                                className={`h-20 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 ${
                                     image === i
                                         ? 'ring-2 ring-amber-400'
                                         : 'opacity-60'
                                 }`}
                             >
-                                <Box
-                                    size={24}
-                                    className="mx-auto text-white"
+                                <img
+                                    src={product.imageUrl || "/images/iphone.jpg"}
+                                    alt={`${product.name} thumbnail ${i + 1}`}
+                                    className="h-full w-full object-cover"
                                 />
                             </button>
                         ))}
