@@ -38,18 +38,20 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public product browsing
+                        // Public product browsing and static uploads
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/products",
-                                "/api/products/**"
+                                "/api/products/**",
+                                "/uploads/**"
                         ).permitAll()
 
                         // Public technical endpoints
                         .requestMatchers(
                                 "/actuator/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui/**"
+                                "/swagger-ui/**",
+                                "/uploads/**"
                         ).permitAll()
 
                         // Everything else requires authentication
@@ -90,7 +92,20 @@ public class SecurityConfig {
                             Arrays.stream(rolesHeader.split(","))
                                     .map(String::trim)
                                     .filter(role -> !role.isBlank())
-                                    .map(SimpleGrantedAuthority::new)
+                                    .flatMap(role -> {
+                                        String r = role.toUpperCase();
+                                        if (r.startsWith("ROLE_")) {
+                                            return java.util.stream.Stream.of(
+                                                    new SimpleGrantedAuthority(r),
+                                                    new SimpleGrantedAuthority(r.substring(5))
+                                            );
+                                        } else {
+                                            return java.util.stream.Stream.of(
+                                                    new SimpleGrantedAuthority("ROLE_" + r),
+                                                    new SimpleGrantedAuthority(r)
+                                            );
+                                        }
+                                    })
                                     .collect(Collectors.toList());
 
                     UsernamePasswordAuthenticationToken authentication =

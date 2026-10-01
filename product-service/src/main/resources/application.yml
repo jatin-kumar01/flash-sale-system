@@ -4,10 +4,15 @@ server:
 spring:
   application:
     name: product-service
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 25MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flashsale_product}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -18,7 +23,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -27,7 +32,7 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:${SPRING_REDIS_HOST:localhost}}
       port: ${SPRING_DATA_REDIS_PORT:${SPRING_REDIS_PORT:6379}}
-      password: ${SPRING_DATA_REDIS_PASSWORD:${SPRING_REDIS_PASSWORD:RedisSecret123!}}
+      password: ${SPRING_DATA_REDIS_PASSWORD:${SPRING_REDIS_PASSWORD:}}
       timeout: 2000ms
 
 product:

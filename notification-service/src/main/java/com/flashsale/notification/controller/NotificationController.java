@@ -29,11 +29,61 @@ public class NotificationController {
     @GetMapping("/my-notifications")
     public ResponseEntity<ApiResponse<Page<NotificationLog>>> getMyNotifications(
             @RequestHeader("X-User-Id") Long userId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         log.debug("Fetching paginated notifications for user: {}", userId);
         Page<NotificationLog> page = notificationService.getUserNotifications(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success("Notifications retrieved successfully", page));
+    }
+
+    @GetMapping("/my-notifications-list")
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getMyNotificationsList(
+            @RequestHeader("X-User-Id") Long userId) {
+
+        log.debug("Fetching list notifications for user: {}", userId);
+        List<NotificationLog> list = notificationService.getUserNotificationsList(userId);
+        return ResponseEntity.ok(ApiResponse.success("Notifications list retrieved successfully", list));
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount(
+            @RequestHeader("X-User-Id") Long userId) {
+
+        long count = notificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(ApiResponse.success("Unread count retrieved successfully", count));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/mark-all-read")
+    public ResponseEntity<ApiResponse<String>> markAllRead(
+            @RequestHeader("X-User-Id") Long userId) {
+
+        log.debug("Marking all notifications as read for user: {}", userId);
+        notificationService.markAllAsRead(userId);
+        return ResponseEntity.ok(ApiResponse.success("All notifications marked as read", "SUCCESS"));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/read")
+    public ResponseEntity<ApiResponse<String>> markRead(
+            @PathVariable("id") Long id,
+            @RequestHeader("X-User-Id") Long userId) {
+
+        log.debug("Marking notification {} as read for user: {}", id, userId);
+        notificationService.markAsRead(id, userId);
+        return ResponseEntity.ok(ApiResponse.success("Notification marked as read", "SUCCESS"));
+    }
+
+    @GetMapping("/admin-notifications-list")
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getAdminNotificationsList() {
+        log.debug("Fetching all admin notification logs list");
+        List<NotificationLog> list = notificationService.getAllNotificationsList();
+        return ResponseEntity.ok(ApiResponse.success("Admin notifications list retrieved successfully", list));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/admin-mark-all-read")
+    public ResponseEntity<ApiResponse<String>> markAllReadAdmin() {
+        log.debug("Marking all admin notifications as read");
+        notificationService.markAllAsReadGlobal();
+        return ResponseEntity.ok(ApiResponse.success("All admin notifications marked as read", "SUCCESS"));
     }
 
     @GetMapping("/order/{orderReference}")

@@ -1,19 +1,21 @@
+# Local Environment & Secrets
+set-local-env.ps1
+.env
+.env.*
+!.env.example
+
 # Java / Maven
+**/target/
 target/
 *.class
 
 # Node / Next.js
+**/node_modules/
 node_modules/
+**/.next/
 .next/
 out/
 dist/
-
-# Environment / secrets
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # IDE
 .idea/
@@ -23,10 +25,19 @@ dist/
 # Logs
 *.log
 logs/
+kafka-logs/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Docker generated data
+# Docker generated data & Local DB/Redis/Kafka dumps
 docker-data/
+/Redis-8.10.1-Windows-x64-cygwin-with-Service/
+/dump.rdb
+*.rdb
+/flashsale_database_backup.sql
+*.sql
+/frontend/_tmp_*
+scratch/
+tmp/

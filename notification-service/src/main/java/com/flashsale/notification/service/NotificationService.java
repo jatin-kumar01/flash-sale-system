@@ -95,6 +95,38 @@ public class NotificationService {
         return notificationLogRepository.findByUserId(userId, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public List<NotificationLog> getUserNotificationsList(Long userId) {
+        return notificationLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public long getUnreadCount(Long userId) {
+        return notificationLogRepository.countByUserIdAndIsReadFalse(userId);
+    }
+
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        notificationLogRepository.markAllAsReadByUserId(userId);
+    }
+
+    @Transactional
+    public void markAsRead(Long id, Long userId) {
+        notificationLogRepository.markAsReadByIdAndUserId(id, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationLog> getAllNotificationsList() {
+        return notificationLogRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Transactional
+    public void markAllAsReadGlobal() {
+        notificationLogRepository.markAllAsReadGlobal();
+    }
+
+
+
     private void dispatchEmailNotification(String orderReference, Long userId, String recipient,
                                            String eventType, String subject, String htmlContent) {
         NotificationLog notificationLog = NotificationLog.builder()

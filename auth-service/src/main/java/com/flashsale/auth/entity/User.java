@@ -52,6 +52,12 @@ public class User {
     @Column(nullable = false, length = 50)
     private String lastName;
 
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 255)
+    private String address;
+
     @Builder.Default
     @Column(nullable = false)
     private boolean enabled = true;

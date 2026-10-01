@@ -7,6 +7,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Repository
@@ -16,11 +21,32 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
 
     Page<NotificationLog> findByUserId(Long userId, Pageable pageable);
 
+    List<NotificationLog> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    long countByUserIdAndIsReadFalse(Long userId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE NotificationLog n SET n.isRead = true WHERE n.userId = :userId AND n.isRead = false")
+    int markAllAsReadByUserId(@Param("userId") Long userId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE NotificationLog n SET n.isRead = true WHERE n.id = :id AND n.userId = :userId")
+    int markAsReadByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
     List<NotificationLog> findByStatus(DeliveryStatus status);
 
     Page<NotificationLog> findByStatus(DeliveryStatus status, Pageable pageable);
 
     boolean existsByOrderReferenceAndEventType(String orderReference, String eventType);
+
+    List<NotificationLog> findAllByOrderByCreatedAtDesc();
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE NotificationLog n SET n.isRead = true WHERE n.isRead = false")
+    int markAllAsReadGlobal();
 }
 /*This `NotificationLogRepository.java` is a **clean Spring Data JPA repository** and fits the notification-service structure well.
 

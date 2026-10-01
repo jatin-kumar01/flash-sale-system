@@ -36,7 +36,22 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("UPDATE Inventory i SET i.lockedStock = i.lockedStock - :quantity, " +
            "i.totalStock = i.totalStock - :quantity, i.updatedAt = CURRENT_TIMESTAMP " +
            "WHERE i.productId = :productId AND i.lockedStock >= :quantity")
+    int deductLockedStockDirect(@Param("productId") Long productId, @Param("quantity") int quantity);
+
+    @Modifying
+    @Query("UPDATE Inventory i SET i.availableStock = i.availableStock - :quantity, " +
+           "i.totalStock = i.totalStock - :quantity, i.updatedAt = CURRENT_TIMESTAMP " +
+           "WHERE i.productId = :productId AND i.availableStock >= :quantity")
     int deductStockDirect(@Param("productId") Long productId, @Param("quantity") int quantity);
+
+    @Modifying
+    @Query("UPDATE Inventory i SET " +
+           "i.totalStock = CASE WHEN i.totalStock >= :quantity THEN i.totalStock - :quantity ELSE 0 END, " +
+           "i.availableStock = CASE WHEN i.availableStock >= :quantity THEN i.availableStock - :quantity ELSE 0 END, " +
+           "i.lockedStock = CASE WHEN i.lockedStock >= :quantity THEN i.lockedStock - :quantity ELSE 0 END, " +
+           "i.updatedAt = CURRENT_TIMESTAMP " +
+           "WHERE i.productId = :productId")
+    int deductStockFallback(@Param("productId") Long productId, @Param("quantity") int quantity);
 }
 
 /*Yes, this `InventoryRepository.java` is a **core file** for your flash-sale project because it handles the database operations that protect inventory from overselling.

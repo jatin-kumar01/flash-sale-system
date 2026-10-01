@@ -27,7 +27,7 @@ public class AdminSeeder implements CommandLineRunner {
     @Value("${app.admin.email:admin@flashsale.com}")
     private String adminEmail;
 
-    @Value("${app.admin.password:Admin@123}")
+    @Value("${app.admin.password}")
     private String adminPassword;
 
     @Value("${app.admin.first-name:Admin}")

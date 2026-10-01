@@ -21,6 +21,7 @@ import com.flashsale.order.kafka.OrderProducer;
 import com.flashsale.order.repository.OrderOutboxRepository;
 import com.flashsale.order.repository.OrderRepository;
 import feign.FeignException;
+import org.springframework.web.client.HttpClientErrorException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,10 +104,11 @@ public class OrderService {
 
         try {
             inventoryClient.reserveStock(reservationRequest);
-        } catch (FeignException.BadRequest | FeignException.Conflict ex) {
+        } catch (FeignException.BadRequest | FeignException.Conflict | HttpClientErrorException.BadRequest | HttpClientErrorException.Conflict ex) {
             log.warn("Inventory reservation rejected for productId: {}, quantity: {}", product.getId(), request.getQuantity());
-            throw new InsufficientStockException("Insufficient stock available for product: " + product.getName());
-        } catch (FeignException ex) {
+            String productName = (product.getName() != null && !product.getName().isBlank()) ? product.getName() : "ID " + product.getId();
+            throw new InsufficientStockException("Insufficient stock available for product: " + productName);
+        } catch (FeignException | HttpClientErrorException ex) {
             log.error("Error communicating with inventory-service during stock reservation for order: {}", orderReference, ex);
             throw new InvalidRequestException("Inventory service is currently unavailable. Please retry.");
         }
@@ -192,6 +194,12 @@ public class OrderService {
                         )
                 );
 
+        if (order.getStatus() == OrderStatus.PAID) {
+            log.info("Order {} is already marked as PAID. Ignoring duplicate payment completion.",
+                    orderReference);
+            return;
+        }
+
         InventoryReservationRequest settleRequest =
                 InventoryReservationRequest.builder()
                         .productId(order.getProductId())
@@ -221,6 +229,23 @@ public class OrderService {
     public Page<OrderResponse> getUserOrders(Long userId, Pageable pageable) {
         return orderRepository.findByUserId(userId, pageable)
                 .map(OrderResponse::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> getAllOrders(Pageable pageable) {
+        try {
+            return orderRepository.findAll(pageable)
+                    .map(OrderResponse::fromEntity);
+        } catch (org.springframework.data.mapping.PropertyReferenceException ex) {
+            log.warn("Invalid sort property '{}', falling back to default sort (createdAt, DESC)", ex.getPropertyName());
+            Pageable fallbackPageable = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+            );
+            return orderRepository.findAll(fallbackPageable)
+                    .map(OrderResponse::fromEntity);
+        }
     }
 
     private void compensateStockReservation(InventoryReservationRequest reservationRequest) {

@@ -11,12 +11,22 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import org.springframework.http.converter.HttpMessageNotReadableException;
+
 import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException ex) {
+        log.warn("Resource not found: {}", ex.getMessage());
+        ErrorDetail errorDetail = ErrorDetail.of(ex.getErrorCode(), ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ex.getMessage(), List.of(errorDetail));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 
     @ExceptionHandler(BaseCustomException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseCustomException(BaseCustomException ex) {
@@ -72,8 +82,67 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Malformed JSON payload or invalid enum conversion: {}", ex.getMessage());
+
+        String causeMessage = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        ErrorDetail errorDetail = ErrorDetail.of("INVALID_PAYLOAD", causeMessage);
+        ApiResponse<Void> response = ApiResponse.error("Invalid payload format or field value: " + causeMessage, List.of(errorDetail));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+
+        String causeMessage = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        ErrorDetail errorDetail = ErrorDetail.of("DATA_INTEGRITY_VIOLATION", causeMessage);
+        ApiResponse<Void> response = ApiResponse.error("Database constraint error: " + causeMessage, List.of(errorDetail));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        log.warn("File upload size limit exceeded: {}", ex.getMessage());
+
+        ErrorDetail errorDetail = ErrorDetail.of("FILE_TOO_LARGE", "File size exceeds maximum permitted limit of 5 MB.");
+        ApiResponse<Void> response = ApiResponse.error("Image file size must be 5 MB or less", List.of(errorDetail));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMultipartException(org.springframework.web.multipart.MultipartException ex) {
+        log.warn("Multipart request processing failed: {}", ex.getMessage());
+
+        ErrorDetail errorDetail = ErrorDetail.of("MULTIPART_ERROR", ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.error("Failed to parse image file upload request", List.of(errorDetail));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        log.warn("HTTP method not supported: {}", ex.getMessage());
+
+        ErrorDetail errorDetail = ErrorDetail.of("METHOD_NOT_ALLOWED", ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ex.getMessage(), List.of(errorDetail));
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnhandledException(Exception ex) {
+        if (ex.getClass().getName().endsWith("BadCredentialsException")) {
+            log.warn("Authentication failure / Bad credentials: {}", ex.getMessage());
+            ErrorDetail errorDetail = ErrorDetail.of("UNAUTHORIZED", ex.getMessage());
+            ApiResponse<Void> response = ApiResponse.error(ex.getMessage(), List.of(errorDetail));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
         log.error("Unhandled internal system error:", ex);
 
         ErrorDetail errorDetail = ErrorDetail.of("INTERNAL_SERVER_ERROR", "An unexpected error occurred. Please try again later.");

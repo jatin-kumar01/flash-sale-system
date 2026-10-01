@@ -65,6 +65,14 @@ public class OrderController {
         OrderResponse response = orderService.cancelOrder(userId, orderReference);
         return ResponseEntity.ok(ApiResponse.success("Order cancelled successfully", response));
     }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getAllOrders(
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        log.debug("Fetching all orders with pagination");
+        Page<OrderResponse> response = orderService.getAllOrders(pageable);
+        return ResponseEntity.ok(ApiResponse.success("Orders retrieved successfully", response));
+    }
 }
 /*This `OrderController.java` is the **REST API entry point for the Order Service**. Overall, the controller is clean and follows the correct principle: **controller handles HTTP, `OrderService` handles business logic**.
 

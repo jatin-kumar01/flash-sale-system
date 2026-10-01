@@ -4,6 +4,7 @@ import com.flashsale.common.event.InventoryEvent;
 import com.flashsale.common.exception.InsufficientStockException;
 import com.flashsale.common.exception.InvalidRequestException;
 import com.flashsale.common.exception.ResourceNotFoundException;
+import com.flashsale.inventory.dto.InitializeInventoryRequest;
 import com.flashsale.inventory.dto.InventoryReservationRequest;
 import com.flashsale.inventory.dto.InventoryResponse;
 import com.flashsale.inventory.entity.Inventory;
@@ -78,6 +79,12 @@ public class InventoryService {
             );
         }
 
+        try {
+            inventoryRepository.reserveStockDirect(productId, quantity);
+        } catch (Exception ex) {
+            log.warn("DB reserveStockDirect exception for productId {}: {}", productId, ex.getMessage());
+        }
+
         InventoryEvent event = InventoryEvent.builder()
                 .productId(productId)
                 .quantity(quantity)
@@ -132,9 +139,10 @@ public class InventoryService {
                 RedisInventoryManager.ReleaseResult result =
                         redisInventoryManager.releaseStock(productId, quantity);
 
-                if (result == RedisInventoryManager.ReleaseResult.NOT_INITIALIZED) {
+                if (result == RedisInventoryManager.ReleaseResult.NOT_INITIALIZED || result == RedisInventoryManager.ReleaseResult.INVALID_QUANTITY) {
                     log.warn(
-                            "Redis stock not initialized for productId: {}. Releasing through DB.",
+                            "Redis stock release returned {}. Releasing through DB fallback for productId: {}.",
+                            result,
                             productId
                     );
 
@@ -142,17 +150,14 @@ public class InventoryService {
                             inventoryRepository.releaseStockDirect(productId, quantity);
 
                     if (updatedRows == 0) {
-                        throw new InvalidRequestException(
-                                "Unable to release inventory for product ID: " + productId
+                        log.warn(
+                                "DB release direct updated 0 rows for productId: {}, quantity: {}",
+                                productId,
+                                quantity
                         );
                     }
 
                     syncStockFromDbToRedisWithLock(productId);
-
-                } else if (result == RedisInventoryManager.ReleaseResult.INVALID_QUANTITY) {
-                    throw new InvalidRequestException(
-                            "Unable to release inventory for product ID: " + productId
-                    );
                 }
 
                 stringRedisTemplate.opsForValue().set(
@@ -232,14 +237,18 @@ public class InventoryService {
                 Integer lockedStock =
                         redisInventoryManager.getLockedStock(productId);
 
-                if (lockedStock == null || lockedStock < quantity) {
-                    throw new InvalidRequestException(
-                            "Insufficient locked stock for order: " + orderReference
-                    );
+                if (lockedStock == null) {
+                    syncStockFromDbToRedisWithLock(productId);
+                    lockedStock = redisInventoryManager.getLockedStock(productId);
                 }
 
-                int updatedRows =
-                        inventoryRepository.deductStockDirect(productId, quantity);
+                int updatedRows = inventoryRepository.deductLockedStockDirect(productId, quantity);
+                if (updatedRows == 0) {
+                    updatedRows = inventoryRepository.deductStockDirect(productId, quantity);
+                }
+                if (updatedRows == 0) {
+                    updatedRows = inventoryRepository.deductStockFallback(productId, quantity);
+                }
 
                 if (updatedRows == 0) {
                     throw new InvalidRequestException(
@@ -357,6 +366,89 @@ public class InventoryService {
             Thread.currentThread().interrupt();
             throw new InvalidRequestException(
                     "Thread interrupted while waiting for replenishment lock"
+            );
+        }
+    }
+
+    @Transactional
+    public InventoryResponse initializeInventory(InitializeInventoryRequest request) {
+        Long productId = request.getProductId();
+        Integer initialStock = request.getInitialStock();
+
+        if (productId == null) {
+            throw new InvalidRequestException("Product ID cannot be null");
+        }
+        if (initialStock == null || initialStock <= 0) {
+            throw new InvalidRequestException("Initial stock must be greater than zero");
+        }
+
+        String lockKey = PRODUCT_LOCK_PREFIX + productId;
+        RLock lock = redissonClient.getLock(lockKey);
+
+        try {
+            boolean acquired = lock.tryLock(
+                    lockWaitSeconds,
+                    lockLeaseSeconds,
+                    TimeUnit.SECONDS
+            );
+
+            if (!acquired) {
+                throw new InvalidRequestException(
+                        "Unable to acquire lock for inventory initialization. Please retry."
+                );
+            }
+
+            try {
+                java.util.Optional<Inventory> existingOpt = inventoryRepository.findByProductId(productId);
+                if (existingOpt.isPresent()) {
+                    Inventory existing = existingOpt.get();
+                    log.info(
+                            "Inventory record already exists for productId: {}. Returning existing inventory without modifying stock.",
+                            productId
+                    );
+
+                    redisInventoryManager.prewarmStock(
+                            productId,
+                            existing.getAvailableStock(),
+                            existing.getLockedStock()
+                    );
+
+                    return InventoryResponse.fromEntity(existing, false);
+                }
+
+                Inventory inventory = Inventory.builder()
+                        .productId(productId)
+                        .totalStock(initialStock)
+                        .availableStock(initialStock)
+                        .lockedStock(0)
+                        .build();
+
+                Inventory saved = inventoryRepository.save(inventory);
+
+                redisInventoryManager.prewarmStock(
+                        productId,
+                        saved.getAvailableStock(),
+                        saved.getLockedStock()
+                );
+
+                log.info(
+                        "Successfully initialized inventory for productId: {}, initialStock: {}",
+                        productId,
+                        initialStock
+                );
+
+                return InventoryResponse.fromEntity(saved, false);
+
+            } finally {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
+
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new InvalidRequestException(
+                    "Thread interrupted while waiting for initialization lock"
             );
         }
     }

@@ -23,7 +23,7 @@ import java.util.UUID;
 @Component
 public class JwtProvider {
 
-    @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Getter
@@ -190,7 +190,7 @@ AuthService
 # 3. JWT Secret
 
 ```java
-@Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+@Value("${jwt.secret}")
 private String secret;
 ```
 

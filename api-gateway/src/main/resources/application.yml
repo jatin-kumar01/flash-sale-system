@@ -87,7 +87,7 @@
 ##
 ### Shared JWT configuration for edge validation filter
 ##jwt:
-##  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+##  secret: ${JWT_SECRET}
 ##
 ##management:
 ##  otlp:
@@ -206,7 +206,7 @@
 #
 ## Shared JWT configuration for edge validation filter
 #jwt:
-#  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+#  secret: ${JWT_SECRET}
 #
 #management:
 #  otlp:
@@ -237,6 +237,9 @@ server:
 spring:
   main:
     web-application-type: reactive
+
+  codec:
+    max-in-memory-size: 25MB
 
   application:
     name: api-gateway
@@ -289,7 +292,7 @@ spring:
         - id: product-service
           uri: lb://PRODUCT-SERVICE
           predicates:
-            - Path=/api/products/**
+            - Path=/api/products/**, /uploads/**
 
         # Inventory Service Route
         - id: inventory-service
@@ -315,6 +318,12 @@ spring:
           predicates:
             - Path=/api/analytics/**
 
+        # Notification Service Route
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+
 eureka:
   instance:
     prefer-ip-address: true
@@ -327,8 +336,10 @@ eureka:
     fetch-registry: true
 
 # JWT configuration
+#jwt:
+#  secret: ${JWT_SECRET}
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  secret: ${JWT_SECRET}
 
 management:
   otlp:

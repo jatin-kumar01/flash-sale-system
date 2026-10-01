@@ -67,6 +67,10 @@ public class NotificationLog {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isRead = false;
+
     public enum ChannelType {
         EMAIL,
         SMS,
@@ -95,6 +99,10 @@ public class NotificationLog {
     public void markFailed(String errorMessage) {
         this.status = DeliveryStatus.FAILED;
         this.errorMessage = errorMessage;
+    }
+
+    public void markRead() {
+        this.isRead = true;
     }
 }
 /*Yes — this `NotificationLog.java` is a **JPA Entity** for your `notification-service`.

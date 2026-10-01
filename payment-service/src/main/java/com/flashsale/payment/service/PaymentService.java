@@ -18,18 +18,28 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "id", "transactionId", "orderReference", "userId", "amount",
+            "paymentMethod", "status", "failureReason", "createdAt", "updatedAt"
+    );
 
     private final PaymentRepository paymentRepository;
     private final PaymentOutboxRepository outboxRepository;
@@ -125,8 +135,41 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public Page<PaymentResponse> getUserPayments(Long userId, Pageable pageable) {
-        return paymentRepository.findByUserId(userId, pageable)
+        return paymentRepository.findByUserId(userId, sanitizePageable(pageable))
                 .map(PaymentResponse::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PaymentResponse> getAllPayments(Pageable pageable) {
+        return paymentRepository.findAll(sanitizePageable(pageable))
+                .map(PaymentResponse::fromEntity);
+    }
+
+    private Pageable sanitizePageable(Pageable pageable) {
+        if (pageable == null || pageable.getSort().isUnsorted()) {
+            return pageable;
+        }
+
+        List<Sort.Order> validOrders = new ArrayList<>();
+        for (Sort.Order order : pageable.getSort()) {
+            if (ALLOWED_SORT_FIELDS.contains(order.getProperty())) {
+                validOrders.add(order);
+            }
+        }
+
+        if (validOrders.isEmpty()) {
+            return PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+            );
+        }
+
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(validOrders)
+        );
     }
 
     private void simulateGatewayCall() {

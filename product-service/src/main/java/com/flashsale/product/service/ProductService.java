@@ -2,6 +2,7 @@ package com.flashsale.product.service;
 
 import com.flashsale.common.exception.InvalidRequestException;
 import com.flashsale.common.exception.ResourceNotFoundException;
+import com.flashsale.product.client.InventoryClient;
 import com.flashsale.product.dto.CreateProductRequest;
 import com.flashsale.product.dto.ProductResponse;
 import com.flashsale.product.dto.UpdateProductRequest;
@@ -24,6 +25,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final ProductCacheService productCacheService;
+    private final InventoryClient inventoryClient;
 
     @Transactional
     public ProductResponse createProduct(CreateProductRequest request) {
@@ -44,6 +46,9 @@ public class ProductService {
 
         Product savedProduct = productRepository.save(product);
         log.info("Created new flash sale product: ID {}", savedProduct.getId());
+
+        // Initialize inventory for the newly created product
+        inventoryClient.initializeInventory(savedProduct.getId(), savedProduct.getInitialStock());
 
         ProductResponse response = ProductResponse.fromEntity(savedProduct);
         productCacheService.putProduct(response);

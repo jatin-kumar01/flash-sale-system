@@ -45,7 +45,7 @@ public class OrderResponse implements Serializable {
                 .quantity(order.getQuantity())
                 .unitPrice(order.getUnitPrice())
                 .totalAmount(order.getTotalAmount())
-                .status(order.getStatus().name())
+                .status(order.getStatus() != null ? order.getStatus().name() : null)
                 .paymentDeadline(order.getPaymentDeadline())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())

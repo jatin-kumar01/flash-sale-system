@@ -4,6 +4,8 @@ import com.flashsale.auth.dto.AuthRequest;
 import com.flashsale.auth.dto.AuthResponse;
 import com.flashsale.auth.dto.RefreshTokenRequest;
 import com.flashsale.auth.dto.RegisterRequest;
+import com.flashsale.auth.dto.UpdateProfileRequest;
+import com.flashsale.auth.dto.UserResponse;
 import com.flashsale.auth.service.AuthService;
 import com.flashsale.common.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -11,10 +13,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -23,6 +32,58 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> getProfile(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String xUserId) {
+        log.info("Received request to fetch current user profile");
+        UserResponse response = authService.getProfile(authHeader, xUserId);
+        return ResponseEntity.ok(ApiResponse.success("Profile retrieved successfully", response));
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<UserResponse>> getProfileAlias(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String xUserId) {
+        return getProfile(authHeader, xUserId);
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String xUserId,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        log.info("Received request to update user profile");
+        UserResponse response = authService.updateProfile(authHeader, xUserId, request);
+        return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", response));
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
+        log.info("Received request to fetch all registered users");
+        List<UserResponse> users = authService.getAllUsers();
+        return ResponseEntity.ok(ApiResponse.success("Users retrieved successfully", users));
+    }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable("id") Long userId) {
+        log.info("Received request to delete user with ID: {}", userId);
+        authService.deleteUser(userId);
+        return ResponseEntity.ok(ApiResponse.success("User deleted successfully", null));
+    }
+
+    @GetMapping("/validate-user/{identifier}")
+    public ResponseEntity<ApiResponse<Boolean>> validateUser(@PathVariable("identifier") String identifier) {
+        log.debug("Received request to validate user status for identifier: {}", identifier);
+        boolean isValid = authService.isUserValidAndEnabled(identifier);
+        if (isValid) {
+            return ResponseEntity.ok(ApiResponse.success("User is valid and active", true));
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("User account is disabled or deleted"));
+        }
+    }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {

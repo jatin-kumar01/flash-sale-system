@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -27,7 +28,7 @@ public class InventoryClient {
 
     public InventoryClient(
             RestClient.Builder restClientBuilder,
-            @Value("${app.services.inventory-url:http://inventory-service:8083}") String inventoryBaseUrl) {
+            @Value("${app.services.inventory-url:http://localhost:8083}") String inventoryBaseUrl) {
         this.restClient = restClientBuilder
                 .baseUrl(inventoryBaseUrl)
                 .build();
@@ -84,11 +85,23 @@ public class InventoryClient {
      * Generic fallback for timeout, I/O errors, or downstream HTTP 5xx responses.
      */
     public ReservationResponse reserveStockFallback(ReservationRequest request, Throwable ex) {
+        if (ex instanceof HttpClientErrorException) {
+            throw (HttpClientErrorException) ex;
+        }
+        if (ex.getCause() instanceof HttpClientErrorException) {
+            throw (HttpClientErrorException) ex.getCause();
+        }
         log.error("Fallback invoked for inventory reservation [orderRef={}]: {}", request.getOrderReference(), ex.getMessage());
         throw new InventoryUnavailableException("Unable to reserve inventory at this moment: " + ex.getMessage(), ex);
     }
 
     public ReservationResponse reserveStockFallback(InventoryReservationRequest request, Throwable ex) {
+        if (ex instanceof HttpClientErrorException) {
+            throw (HttpClientErrorException) ex;
+        }
+        if (ex.getCause() instanceof HttpClientErrorException) {
+            throw (HttpClientErrorException) ex.getCause();
+        }
         log.error("Fallback invoked for inventory reservation [orderRef={}]: {}", request.getOrderReference(), ex.getMessage());
         throw new InventoryUnavailableException("Unable to reserve inventory at this moment: " + ex.getMessage(), ex);
     }

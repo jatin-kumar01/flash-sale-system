@@ -86,6 +86,10 @@ public class RedisInventoryManager {
     public void deductLockedStock(Long productId, int quantity) {
         String lockedKey = buildLockedKey(productId);
         Long remaining = stringRedisTemplate.opsForValue().decrement(lockedKey, quantity);
+        if (remaining != null && remaining < 0) {
+            stringRedisTemplate.opsForValue().set(lockedKey, "0");
+            remaining = 0L;
+        }
         log.debug("Settled and deducted {} locked units for productId: {}. Remaining locked: {}", quantity, productId, remaining);
     }
 

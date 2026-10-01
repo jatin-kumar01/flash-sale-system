@@ -139,6 +139,8 @@ import com.flashsale.auth.dto.AuthRequest;
 import com.flashsale.auth.dto.AuthResponse;
 import com.flashsale.auth.dto.RefreshTokenRequest;
 import com.flashsale.auth.dto.RegisterRequest;
+import com.flashsale.auth.dto.UpdateProfileRequest;
+import com.flashsale.auth.dto.UserResponse;
 import com.flashsale.auth.entity.User;
 import com.flashsale.auth.repository.UserRepository;
 import com.flashsale.common.exception.DuplicateRequestException;
@@ -155,7 +157,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -296,8 +301,111 @@ public class AuthService {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
+                user.getPhone(),
+                user.getAddress(),
                 user.getRoles()
         );
+    }
+
+    public User getCurrentAuthenticatedUser(String authHeader, String xUserIdHeader) {
+        if (xUserIdHeader != null && !xUserIdHeader.isBlank()) {
+            try {
+                Long userId = Long.parseLong(xUserIdHeader.trim());
+                Optional<User> userOpt = userRepository.findById(userId);
+                if (userOpt.isPresent()) {
+                    return userOpt.get();
+                }
+            } catch (NumberFormatException e) {
+                Optional<User> userOpt = userRepository.findByEmail(xUserIdHeader.toLowerCase().trim());
+                if (userOpt.isPresent()) {
+                    return userOpt.get();
+                }
+            }
+        }
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7).trim();
+            if (jwtProvider.validateToken(token)) {
+                Long userId = jwtProvider.extractUserId(token);
+                if (userId != null) {
+                    return userRepository.findById(userId)
+                            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+                }
+                String email = jwtProvider.extractEmail(token);
+                if (email != null) {
+                    return userRepository.findByEmail(email)
+                            .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+                }
+            }
+        }
+
+        throw new BadCredentialsException("User identity could not be authenticated");
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getProfile(String authHeader, String xUserId) {
+        User user = getCurrentAuthenticatedUser(authHeader, xUserId);
+        if (!user.isEnabled()) {
+            throw new BadCredentialsException("User account is disabled or deleted");
+        }
+        return UserResponse.fromEntity(user);
+    }
+
+    @Transactional
+    public UserResponse updateProfile(String authHeader, String xUserId, UpdateProfileRequest request) {
+        User user = getCurrentAuthenticatedUser(authHeader, xUserId);
+        if (!user.isEnabled()) {
+            throw new BadCredentialsException("User account is disabled or deleted");
+        }
+
+        user.setFirstName(request.getFirstName().trim());
+        user.setLastName(request.getLastName().trim());
+        user.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
+        user.setAddress(request.getAddress() != null ? request.getAddress().trim() : null);
+
+        User savedUser = userRepository.save(user);
+        log.info("Successfully updated profile for user ID: {}", savedUser.getId());
+        return UserResponse.fromEntity(savedUser);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .filter(user -> user.getRoles() == null || !user.getRoles().contains(SecurityConstants.ROLE_ADMIN))
+                .map(UserResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        if (user.getRoles() != null && user.getRoles().contains(SecurityConstants.ROLE_ADMIN)) {
+            log.warn("Attempt to delete administrator account prevented for user ID: {}", userId);
+            throw new IllegalArgumentException("Administrator accounts cannot be deleted");
+        }
+
+        userRepository.delete(user);
+        log.info("Successfully deleted user account with ID: {}", userId);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isUserValidAndEnabled(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return false;
+        }
+        try {
+            Long userId = Long.parseLong(identifier.trim());
+            return userRepository.findById(userId)
+                    .map(User::isEnabled)
+                    .orElse(false);
+        } catch (NumberFormatException e) {
+            return userRepository.findByEmail(identifier.toLowerCase().trim())
+                    .map(User::isEnabled)
+                    .orElse(false);
+        }
     }
 }
 /*Bilkul. `AuthService.java` tumhare project ka **authentication ka main business-logic layer** hai. Iska kaam Controller se request lena nahi, balki **registration, login, JWT generation, refresh token management aur logout** ka actual logic handle karna hai.

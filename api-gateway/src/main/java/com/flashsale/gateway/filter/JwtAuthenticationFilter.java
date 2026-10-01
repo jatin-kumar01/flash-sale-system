@@ -1311,6 +1311,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -1322,6 +1323,7 @@ import java.util.List;
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil jwtUtil;
+    private final WebClient webClient = WebClient.create("http://localhost:8081");
 
     private static final List<String> PUBLIC_URL_PREFIXES = List.of(
             "/api/auth/",
@@ -1387,32 +1389,51 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
         String rolesHeaderValue = String.join(",", roles);
 
-        // 8. Add trusted user information
-        ServerHttpRequest mutatedRequest = request.mutate()
-                .header(
-                        SecurityConstants.USER_ID_HEADER,
-                        userId
-                )
-                .header(
-                        SecurityConstants.USER_ROLES_HEADER,
-                        rolesHeaderValue
-                )
-                .build();
+        // 8. Validate active user status in PostgreSQL authority via Auth Service
+        return webClient.get()
+                .uri("/api/auth/validate-user/" + userId)
+                .retrieve()
+                .toBodilessEntity()
+                .flatMap(response -> {
+                    if (response.getStatusCode().is2xxSuccessful()) {
+                        ServerHttpRequest mutatedRequest = request.mutate()
+                                .header(
+                                        SecurityConstants.USER_ID_HEADER,
+                                        userId
+                                )
+                                .header(
+                                        SecurityConstants.USER_ROLES_HEADER,
+                                        rolesHeaderValue
+                                )
+                                .build();
 
-        // 9. Continue request to downstream service
-        return chain.filter(
-                exchange.mutate()
-                        .request(mutatedRequest)
-                        .build()
-        );
+                        return chain.filter(
+                                exchange.mutate()
+                                        .request(mutatedRequest)
+                                        .build()
+                        );
+                    } else {
+                        log.warn("User status validation failed for user ID: {}", userId);
+                        return onError(exchange, HttpStatus.UNAUTHORIZED);
+                    }
+                })
+                .onErrorResume(ex -> {
+                    log.warn("User validation error or account disabled/deleted for user ID: {}: {}", userId, ex.getMessage());
+                    return onError(exchange, HttpStatus.UNAUTHORIZED);
+                });
     }
 
     private boolean isPublicEndpoint(
             String path,
             HttpMethod method) {
 
+        // Static uploaded images
+        if (path.startsWith("/uploads")) {
+            return true;
+        }
+
         // Public product catalog - GET only
-        if (path.startsWith("/api/products")
+        if ((path.startsWith("/api/products") || path.startsWith("/api/inventory"))
                 && HttpMethod.GET.equals(method)) {
             return true;
         }

@@ -69,6 +69,15 @@ public class PaymentController {
         Page<PaymentResponse> response = paymentService.getUserPayments(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success("User payments retrieved successfully", response));
     }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<Page<PaymentResponse>>> getAllPayments(
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.debug("Fetching all payments for admin with pagination");
+        Page<PaymentResponse> response = paymentService.getAllPayments(pageable);
+        return ResponseEntity.ok(ApiResponse.success("Payments retrieved successfully", response));
+    }
 }
 /*Yes — this `PaymentController.java` is **clean and appropriately thin**. It correctly acts as the REST/API layer and delegates business logic to `PaymentService`.
 
